@@ -28,24 +28,25 @@ const LoggedIn = () => {
     return (
         <>
             <SetNameOfStoreForm />
+            <StoreLink />
         </>
     );
 };
+
+const useStoreName = () =>
+    useSWR("store_settings", async () => {
+        const { data } = await supabase
+            .from("store_settings")
+            .select("store_name")
+            .single();
+        return data;
+    });
 
 const SetNameOfStoreForm = () => {
     // This is a form that displays the current name of the store,
     // and also allows it to be edited. We'll fetch from supabase and update
     // there as well. store_settings.store_name is the name of the store.
-    const { data, error, isLoading, mutate } = useSWR(
-        "store_settings",
-        async () => {
-            const { data } = await supabase
-                .from("store_settings")
-                .select("store_name")
-                .single();
-            return data;
-        }
-    );
+    const { data, error, isLoading, mutate } = useStoreName();
     console.log({ data });
     if (isLoading) return;
     if (error) return error.message;
@@ -89,5 +90,27 @@ const SetNameOfStoreForm = () => {
                 </button>
             </div>
         </form>
+    );
+};
+
+const StoreLink = () => {
+    // The store link is the serialized version of the store name
+    // that is used in the URL. It is used to access the store page.
+    const { data, error, isLoading } = useStoreName();
+
+    if (isLoading) return <div>Loading...</div>;
+    if (error) return <div>{error.message}</div>;
+
+    const storeName = data?.store_name;
+
+    return (
+        <div className="my-6">
+            <a
+                href={`/store/${storeName}`}
+                className="text-indigo-600 hover:text-indigo-900"
+            >
+                Go to your store
+            </a>
+        </div>
     );
 };
