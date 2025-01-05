@@ -1,20 +1,7 @@
 import { supabase } from "@/lib/suapbaseClient";
+import { useUser } from "@/lib/useUser";
 import { Auth } from "@supabase/auth-ui-react";
-import { useEffect, useState } from "react";
-
-const useUser = () => {
-    const [user, setUser] = useState(supabase.auth.getUser());
-    useEffect(() => {
-        const { data: authListener } = supabase.auth.onAuthStateChange(
-            async (event, session) => {
-                const currentUser = session?.user;
-                setUser(currentUser ?? null);
-            }
-        );
-        return () => {};
-    });
-    return user;
-};
+import useSWR from "swr";
 
 export default function Home() {
     const user = useUser();
@@ -26,7 +13,7 @@ export default function Home() {
                 e-commerce store
             </p>
             {!user?.id && <Login />}
-            {user?.id && "Logged in!"}
+            {user?.id && <LoggedIn />}
         </div>
     );
 }
@@ -36,3 +23,53 @@ const Login = () => (
         <Auth supabaseClient={supabase} magicLink />
     </div>
 );
+
+const LoggedIn = () => {
+    return (
+        <>
+            <SetNameOfStoreForm />
+        </>
+    );
+};
+
+const SetNameOfStoreForm = () => {
+    // This is a form that displays the current name of the store,
+    // and also allows it to be edited. We'll fetch from supabase and update
+    // there as well. store_settings.store_name is the name of the store.
+    const { data, error, isLoading, mutate } = useSWR(
+        "store_settings",
+        async () => {
+            const { data } = await supabase
+                .from("store_settings")
+                .select("store_name")
+                .single();
+            return data;
+        }
+    );
+    console.log({ data });
+    if (isLoading) return;
+    if (error) return error.message;
+
+    const storeName = data?.store_name;
+    const updateStoreName = async (e) => {
+        e.preventDefault();
+        const { storeName } = e.target.elements;
+        await supabase.from("store_settings").upsert({
+            store_name: storeName.value,
+        });
+        mutate();
+    };
+
+    return (
+        <form onSubmit={updateStoreName}>
+            <label htmlFor="storeName">Store Name</label>
+            <input
+                type="text"
+                id="storeName"
+                name="storeName"
+                defaultValue={storeName}
+            />
+            <button type="submit">Update</button>
+        </form>
+    );
+};
